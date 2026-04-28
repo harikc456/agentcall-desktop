@@ -22,6 +22,23 @@
     </div>
     <div id="setup-error" class="error hidden"></div>
     <button id="setup-save" class="btn-primary">Save &amp; Continue</button>
+
+    <hr class="divider" />
+
+    <div id="gemini-section">
+      <h2 class="section-title">AI Brain (Gemini)</h2>
+      <p class="hint">Sign in with Google to enable live meeting intelligence.</p>
+
+      <div id="gemini-signed-out">
+        <button id="gemini-signin" class="btn-google">Sign in with Google</button>
+        <div id="gemini-auth-error" class="error hidden"></div>
+      </div>
+
+      <div id="gemini-signed-in" class="hidden">
+        <span id="gemini-email" class="gemini-email"></span>
+        <button id="gemini-signout" class="btn-text">Sign out</button>
+      </div>
+    </div>
   </div>
 
   <!-- Screen: Join a Meeting -->
@@ -64,6 +81,7 @@
     <div class="call-header">
       <div id="call-status-dot" class="status-dot joining"></div>
       <span id="call-status-text">Joining meeting...</span>
+      <span id="gemini-chip" class="gemini-chip hidden">● Gemini active</span>
     </div>
     <div class="section-label">PARTICIPANTS</div>
     <div id="call-participants" class="participants-list">

@@ -185,3 +185,55 @@ input:focus, select:focus, textarea:focus { border-color: #4a9eff; }
 .transcript-line.bot   .speaker { color: #4a9eff; }
 .transcript-line.human .text   { color: #d1d5db; }
 .transcript-line.bot   .text   { color: #bfdbfe; }
+
+/* ── Gemini auth section ──────────────────────────────────────────────── */
+.divider {
+  border: none;
+  border-top: 1px solid #2a2a2a;
+  margin: 1.25rem 0;
+}
+
+.section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  text-align: left;
+}
+
+#gemini-section .hint {
+  color: #666;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+  text-align: left;
+}
+
+.btn-google {
+  width: 100%;
+  padding: 0.5rem;
+  background: #fff;
+  color: #333;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-google:hover { background: #f0f0f0; }
+.btn-google:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.gemini-email {
+  color: #aaa;
+  font-size: 0.85rem;
+  margin-right: 0.5rem;
+}
+
+/* ── Gemini active chip (call screen) ────────────────────────────────── */
+.gemini-chip {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: #4caf50;
+  padding: 2px 6px;
+  border: 1px solid #4caf50;
+  border-radius: 10px;
+}
