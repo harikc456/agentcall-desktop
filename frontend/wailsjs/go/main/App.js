@@ -6,6 +6,10 @@ export function GetConfig() {
   return window['go']['main']['App']['GetConfig']();
 }
 
+export function GetGeminiStatus() {
+  return window['go']['main']['App']['GetGeminiStatus']();
+}
+
 export function JoinMeeting(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['JoinMeeting'](arg1, arg2, arg3, arg4, arg5);
 }

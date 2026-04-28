@@ -101,6 +101,37 @@ document.getElementById('join-settings').addEventListener('click', async () => {
   show('screen-setup');
 });
 
+// ── Gemini API key ────────────────────────────────────────────────────────
+
+async function refreshGeminiUI() {
+  const cfg = await window.go.main.App.GetConfig();
+  if (cfg.gemini_api_key) {
+    document.getElementById('gemini-apikey').value = '';
+    document.getElementById('gemini-apikey').placeholder = '●●●●●●●● (saved)';
+    document.getElementById('gemini-save').classList.add('hidden');
+    document.getElementById('gemini-clear').classList.remove('hidden');
+  } else {
+    document.getElementById('gemini-apikey').placeholder = 'AIza…';
+    document.getElementById('gemini-save').classList.remove('hidden');
+    document.getElementById('gemini-clear').classList.add('hidden');
+  }
+}
+
+document.getElementById('gemini-save').addEventListener('click', async () => {
+  const key = document.getElementById('gemini-apikey').value.trim();
+  if (!key) { showError('gemini-key-error', 'Please enter a Gemini API key.'); return; }
+  hideError('gemini-key-error');
+  const cfg = await window.go.main.App.GetConfig();
+  await window.go.main.App.SaveConfig({ ...cfg, gemini_api_key: key });
+  await refreshGeminiUI();
+});
+
+document.getElementById('gemini-clear').addEventListener('click', async () => {
+  const cfg = await window.go.main.App.GetConfig();
+  await window.go.main.App.SaveConfig({ ...cfg, gemini_api_key: '' });
+  await refreshGeminiUI();
+});
+
 // ── Leave ─────────────────────────────────────────────────────────────────
 document.getElementById('call-leave').addEventListener('click', async () => {
   document.getElementById('call-leave').disabled = true;
@@ -180,73 +211,15 @@ function returnToJoin() {
 
 // ── Wails event listeners ─────────────────────────────────────────────────
 
-// ── Gemini auth ───────────────────────────────────────────────────────────
-
-async function refreshGeminiUI() {
-  const status = await window.go.main.App.GetGeminiStatus();
-  if (status.authenticated) {
-    document.getElementById('gemini-signed-out').classList.add('hidden');
-    document.getElementById('gemini-signed-in').classList.remove('hidden');
-    document.getElementById('gemini-email').textContent = status.email;
-  } else {
-    document.getElementById('gemini-signed-out').classList.remove('hidden');
-    document.getElementById('gemini-signed-in').classList.add('hidden');
-    document.getElementById('gemini-email').textContent = '';
-  }
-}
-
-document.getElementById('gemini-signin').addEventListener('click', async () => {
-  const btn = document.getElementById('gemini-signin');
-  hideError('gemini-auth-error');
-  btn.disabled = true;
-  btn.textContent = 'Opening browser…';
-  try {
-    await window.go.main.App.StartGeminiAuth();
-    // UI update happens via the auth.gemini_ready Wails event
-  } catch (e) {
-    showError('gemini-auth-error', 'Could not start sign-in: ' + e);
-    btn.disabled = false;
-    btn.textContent = 'Sign in with Google';
-  }
-});
-
-document.getElementById('gemini-signout').addEventListener('click', async () => {
-  await window.go.main.App.SignOutGemini();
-});
-
-window.runtime.EventsOn('auth.gemini_ready', async () => {
-  const btn = document.getElementById('gemini-signin');
-  btn.disabled = false;
-  btn.textContent = 'Sign in with Google';
-  await refreshGeminiUI();
-});
-
-window.runtime.EventsOn('auth.gemini_error', (ev) => {
-  const btn = document.getElementById('gemini-signin');
-  btn.disabled = false;
-  btn.textContent = 'Sign in with Google';
-  showError('gemini-auth-error', (ev && ev.error) || 'Sign-in failed.');
-});
-
-window.runtime.EventsOn('auth.gemini_signed_out', async () => {
-  await refreshGeminiUI();
-});
-
-// ── Gemini active chip (call screen) ─────────────────────────────────────
-
-async function updateGeminiChip() {
+window.runtime.EventsOn('call.bot_ready', async () => {
+  setStatus('ready');
   const status = await window.go.main.App.GetGeminiStatus();
   const chip = document.getElementById('gemini-chip');
-  if (status.authenticated) {
+  if (status.enabled) {
     chip.classList.remove('hidden');
   } else {
     chip.classList.add('hidden');
   }
-}
-
-window.runtime.EventsOn('call.bot_ready', async () => {
-  setStatus('ready');
-  await updateGeminiChip();
 });
 
 window.runtime.EventsOn('participant.joined', (ev) => {

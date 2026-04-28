@@ -114,9 +114,8 @@ func ParseResponse(body []byte) (string, error) {
 }
 
 // Chat sends transcript to Gemini and returns the model's response text.
-// accessToken must be a valid Google OAuth access token with the
-// generative-language scope.
-func (c *Client) Chat(ctx context.Context, accessToken, transcript string) (string, error) {
+// apiKey must be a Gemini API key from https://aistudio.google.com/app/apikey
+func (c *Client) Chat(ctx context.Context, apiKey, transcript string) (string, error) {
 	req := c.BuildRequest(transcript)
 
 	body, err := json.Marshal(req)
@@ -128,7 +127,7 @@ func (c *Client) Chat(ctx context.Context, accessToken, transcript string) (stri
 	if err != nil {
 		return "", err
 	}
-	httpReq.Header.Set("Authorization", "Bearer "+accessToken)
+	httpReq.Header.Set("x-goog-api-key", apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(httpReq)
