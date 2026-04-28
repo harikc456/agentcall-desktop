@@ -12,23 +12,13 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/pkg/browser"
 )
 
-// googleClientID is injected at build time: go build -ldflags "-X agentcall-desktop/internal/auth.googleClientID=<your-id>"
-var googleClientID = "UNSET"
+var googleClientID = "662407074321-bb7p44jkaar0arqn85qn0oe6bpde0pvf.apps.googleusercontent.com"
 
-func init() {
-	if googleClientID == "UNSET" && !testing.Testing() {
-		panic("auth: googleClientID not set — rebuild with -ldflags \"-X agentcall-desktop/internal/auth.googleClientID=<your-id>\"")
-	}
-}
-
-// SetGoogleClientID allows tests to inject a fake client ID.
-func SetGoogleClientID(id string) { googleClientID = id }
 
 const (
 	googleAuthURL  = "https://accounts.google.com/o/oauth2/v2/auth"
