@@ -6,8 +6,11 @@ import (
 	"strings"
 	"sync"
 
+	"agentcall-desktop/internal/auth"
+	"agentcall-desktop/internal/brain"
 	"agentcall-desktop/internal/bridge"
 	"agentcall-desktop/internal/config"
+	"agentcall-desktop/internal/llm"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -19,10 +22,21 @@ type App struct {
 	client *bridge.Client
 	ws     *bridge.Bridge
 	callID string
+	br     *brain.Brain
+	auth   *auth.Provider
+}
+
+// GeminiStatus is returned to the frontend to reflect sign-in state.
+type GeminiStatus struct {
+	Authenticated bool   `json:"authenticated"`
+	Email         string `json:"email"`
 }
 
 func NewApp() *App {
-	return &App{}
+	tokPath, _ := auth.DefaultTokensPath()
+	return &App{
+		auth: auth.NewProvider(tokPath),
+	}
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -41,10 +55,15 @@ func (a *App) cleanup() {
 	ws := a.ws
 	callID := a.callID
 	client := a.client
+	br := a.br
 	a.ws = nil
 	a.callID = ""
+	a.br = nil
 	a.mu.Unlock()
 
+	if br != nil {
+		br.Stop()
+	}
 	if ws != nil {
 		ws.Close()
 	}
@@ -67,7 +86,39 @@ func (a *App) SaveConfig(cfg config.Config) error {
 	return config.Save(cfg)
 }
 
+// GetGeminiStatus returns whether the user is signed in with Google.
+func (a *App) GetGeminiStatus() GeminiStatus {
+	return GeminiStatus{
+		Authenticated: a.auth.IsAuthenticated(),
+		Email:         a.auth.Email(),
+	}
+}
+
+// StartGeminiAuth opens the browser and runs the Google OAuth PKCE flow.
+// Runs asynchronously; emits "auth.gemini_ready" on success or "auth.gemini_error" on failure.
+func (a *App) StartGeminiAuth() error {
+	go func() {
+		err := a.auth.StartOAuth(a.ctx)
+		if err != nil {
+			runtime.EventsEmit(a.ctx, "auth.gemini_error", map[string]string{"error": err.Error()})
+			return
+		}
+		runtime.EventsEmit(a.ctx, "auth.gemini_ready", map[string]string{"email": a.auth.Email()})
+	}()
+	return nil
+}
+
+// SignOutGemini removes stored Google tokens and emits "auth.gemini_signed_out".
+func (a *App) SignOutGemini() error {
+	if err := a.auth.SignOut(); err != nil {
+		return err
+	}
+	runtime.EventsEmit(a.ctx, "auth.gemini_signed_out", nil)
+	return nil
+}
+
 // JoinMeeting creates an AgentCall call and opens the WebSocket connection.
+// If the user is signed in with Google, the Gemini brain is started automatically.
 func (a *App) JoinMeeting(meetURL, botName, triggerWords, botContext, voice string) error {
 	a.mu.Lock()
 	if a.ws != nil {
@@ -115,22 +166,36 @@ func (a *App) JoinMeeting(meetURL, botName, triggerWords, botContext, voice stri
 	a.callID = resp.CallID
 	a.mu.Unlock()
 
-	go a.forwardEvents(ws)
+	var br *brain.Brain
+	if a.auth.IsAuthenticated() {
+		llmClient := llm.NewClient(botName, botContext)
+		br = brain.New(ws, llmClient, a.auth, botName)
+		br.Start(a.ctx)
+		a.mu.Lock()
+		a.br = br
+		a.mu.Unlock()
+	}
+
+	go a.forwardEvents(ws, br)
 	return nil
 }
 
-// LeaveCall sends leave and ends the active call.
+// LeaveCall ends the active call and stops the brain if running.
 func (a *App) LeaveCall() error {
 	a.mu.Lock()
 	ws := a.ws
 	callID := a.callID
 	client := a.client
+	br := a.br
 	a.mu.Unlock()
 
 	if ws == nil {
 		return nil
 	}
 
+	if br != nil {
+		br.Stop()
+	}
 	ws.Close()
 	if client != nil && callID != "" {
 		_ = client.DeleteCall(callID)
@@ -139,12 +204,13 @@ func (a *App) LeaveCall() error {
 	a.mu.Lock()
 	a.ws = nil
 	a.callID = ""
+	a.br = nil
 	a.mu.Unlock()
 	return nil
 }
 
-// forwardEvents reads from the bridge event channel and emits to the frontend.
-func (a *App) forwardEvents(ws *bridge.Bridge) {
+// forwardEvents reads WebSocket events, emits to the frontend, and feeds the brain if active.
+func (a *App) forwardEvents(ws *bridge.Bridge, br *brain.Brain) {
 	for event := range ws.Events() {
 		eventName := event.Normalize()
 		if eventName == "" {
@@ -152,10 +218,18 @@ func (a *App) forwardEvents(ws *bridge.Bridge) {
 		}
 		runtime.EventsEmit(a.ctx, eventName, event)
 
+		if br != nil {
+			br.Feed(event)
+		}
+
 		if eventName == "call.ended" {
 			a.mu.Lock()
 			a.ws = nil
 			a.callID = ""
+			if a.br != nil {
+				a.br.Stop()
+				a.br = nil
+			}
 			a.mu.Unlock()
 		}
 	}
