@@ -75,5 +75,5 @@ type ContextUpdateCmd struct {
 type TriggerSpeakCmd struct {
 	Type    string `json:"type"`
 	Text    string `json:"text"`
-	Speaker string `json:"speaker"`
+	Speaker string `json:"speaker,omitempty"`
 }
