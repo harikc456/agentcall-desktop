@@ -12,14 +12,23 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/pkg/browser"
 )
 
-// googleClientID is the OAuth 2.0 client ID registered in Google Cloud Console
-// as a Desktop application. Set this before shipping.
-const googleClientID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+// googleClientID is injected at build time: go build -ldflags "-X agentcall-desktop/internal/auth.googleClientID=<your-id>"
+var googleClientID = "UNSET"
+
+func init() {
+	if googleClientID == "UNSET" && !testing.Testing() {
+		panic("auth: googleClientID not set — rebuild with -ldflags \"-X agentcall-desktop/internal/auth.googleClientID=<your-id>\"")
+	}
+}
+
+// SetGoogleClientID allows tests to inject a fake client ID.
+func SetGoogleClientID(id string) { googleClientID = id }
 
 const (
 	googleAuthURL  = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -27,6 +36,8 @@ const (
 	geminiScope    = "https://www.googleapis.com/auth/generative-language"
 	emailScope     = "email"
 )
+
+var httpClient = &http.Client{Timeout: 30 * time.Second}
 
 // GenerateVerifier creates a random PKCE code verifier (base64url, no padding).
 func GenerateVerifier() (string, error) {
@@ -110,6 +121,9 @@ func (p *Provider) StartOAuth(ctx context.Context) error {
 			return
 		}
 		fmt.Fprintln(w, "<html><body><h2>Signed in! You can close this tab.</h2></body></html>")
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
 		codeCh <- code
 	})
 	go srv.Serve(ln) //nolint:errcheck
@@ -175,7 +189,10 @@ func (p *Provider) exchange(ctx context.Context, code, verifier, redirectURI str
 		email, _ = fetchEmail(ctx, tr.AccessToken)
 	}
 
-	tok, _ := LoadTokens(p.tokensPath)
+	tok, err := LoadTokens(p.tokensPath)
+	if err != nil {
+		tok = Tokens{} // start fresh; existing data unreadable
+	}
 	tok.Gemini = &GeminiTokens{
 		AccessToken:  tr.AccessToken,
 		RefreshToken: tr.RefreshToken,
@@ -212,7 +229,7 @@ func postToken(ctx context.Context, body url.Values) (*tokenResponse, error) {
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -234,11 +251,14 @@ func fetchEmail(ctx context.Context, accessToken string) (string, error) {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet,
 		"https://www.googleapis.com/oauth2/v3/userinfo", nil)
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", nil // non-200 means we can't get email; proceed without it
+	}
 	var info struct {
 		Email string `json:"email"`
 	}
