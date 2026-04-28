@@ -1,43 +1,213 @@
-import './style.css';
-import './app.css';
+'use strict';
 
-import logo from './assets/images/logo-universal.png';
-import {Greet} from '../wailsjs/go/main/App';
+// ── State ──────────────────────────────────────────────────────────────────
+const participants = new Map(); // id → name
+let botName = 'Juno';
 
-document.querySelector('#app').innerHTML = `
-    <img id="logo" class="logo">
-      <div class="result" id="result">Please enter your name below 👇</div>
-      <div class="input-box" id="input">
-        <input class="input" id="name" type="text" autocomplete="off" />
-        <button class="btn" onclick="greet()">Greet</button>
-      </div>
-    </div>
-`;
-document.getElementById('logo').src = logo;
+// ── Screen helpers ─────────────────────────────────────────────────────────
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
 
-let nameElement = document.getElementById("name");
-nameElement.focus();
-let resultElement = document.getElementById("result");
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
 
-// Setup the greet function
-window.greet = function () {
-    // Get name
-    let name = nameElement.value;
+function hideError(id) {
+  document.getElementById(id).classList.add('hidden');
+}
 
-    // Check if the input is empty
-    if (name === "") return;
+// ── Startup ────────────────────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  const cfg = await window.go.main.App.GetConfig();
 
-    // Call App.Greet(name)
-    try {
-        Greet(name)
-            .then((result) => {
-                // Update result with data back from App.Greet()
-                resultElement.innerText = result;
-            })
-            .catch((err) => {
-                console.error(err);
-            });
-    } catch (err) {
-        console.error(err);
-    }
-};
+  if (!cfg.api_key) {
+    show('screen-setup');
+    return;
+  }
+
+  // Pre-fill join form from saved config
+  if (cfg.default_bot_name) document.getElementById('join-botname').value = cfg.default_bot_name;
+  if (cfg.default_voice)    document.getElementById('join-voice').value    = cfg.default_voice;
+  if (cfg.trigger_words)    document.getElementById('join-trigger').value  = cfg.trigger_words;
+  if (cfg.context)          document.getElementById('join-context').value  = cfg.context;
+
+  show('screen-join');
+});
+
+// ── Setup screen ──────────────────────────────────────────────────────────
+document.getElementById('setup-save').addEventListener('click', async () => {
+  hideError('setup-error');
+  const key = document.getElementById('setup-apikey').value.trim();
+  if (!key.startsWith('ak_ac_')) {
+    showError('setup-error', 'API key must start with ak_ac_');
+    return;
+  }
+  try {
+    await window.go.main.App.SaveConfig({ api_key: key });
+    show('screen-join');
+  } catch (e) {
+    showError('setup-error', 'Could not save key: ' + e);
+  }
+});
+
+// ── Join screen ───────────────────────────────────────────────────────────
+document.getElementById('join-button').addEventListener('click', async () => {
+  hideError('join-error');
+
+  const meetURL      = document.getElementById('join-url').value.trim();
+  const name         = document.getElementById('join-botname').value.trim() || 'Juno';
+  const triggerWords = document.getElementById('join-trigger').value.trim();
+  const ctx          = document.getElementById('join-context').value.trim();
+  const voice        = document.getElementById('join-voice').value;
+
+  if (!meetURL) { showError('join-error', 'Please enter a meeting URL.'); return; }
+  if (!meetURL.startsWith('http')) { showError('join-error', 'Please enter a valid meeting URL.'); return; }
+
+  botName = name;
+
+  // Save settings
+  const cfg = await window.go.main.App.GetConfig();
+  await window.go.main.App.SaveConfig({
+    ...cfg,
+    default_bot_name: name,
+    default_voice:    voice,
+    trigger_words:    triggerWords,
+    context:          ctx,
+  });
+
+  const btn = document.getElementById('join-button');
+  btn.disabled = true;
+  btn.textContent = 'Joining…';
+
+  try {
+    await window.go.main.App.JoinMeeting(meetURL, name, triggerWords, ctx, voice);
+    // Success — switch to call screen
+    resetCallScreen();
+    show('screen-call');
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Join Meeting';
+    showError('join-error', String(e));
+  }
+});
+
+document.getElementById('join-settings').addEventListener('click', () => {
+  show('screen-setup');
+});
+
+// ── Leave ─────────────────────────────────────────────────────────────────
+document.getElementById('call-leave').addEventListener('click', async () => {
+  document.getElementById('call-leave').disabled = true;
+  try {
+    await window.go.main.App.LeaveCall();
+  } catch (_) {}
+  returnToJoin();
+});
+
+// ── Call screen helpers ───────────────────────────────────────────────────
+function resetCallScreen() {
+  participants.clear();
+  document.getElementById('call-status-dot').className = 'status-dot joining';
+  document.getElementById('call-status-text').textContent = 'Joining meeting...';
+  document.getElementById('call-participants').innerHTML = '<span class="empty-hint">Waiting for participants...</span>';
+  document.getElementById('call-transcript').innerHTML   = '<span class="empty-hint">Transcript will appear here...</span>';
+  document.getElementById('call-warning').classList.add('hidden');
+  document.getElementById('call-leave').disabled = false;
+}
+
+function setStatus(state) {
+  const dot  = document.getElementById('call-status-dot');
+  const text = document.getElementById('call-status-text');
+  dot.className = 'status-dot ' + state;
+  text.textContent = {
+    joining: 'Joining meeting...',
+    ready:   botName + ' is in the meeting',
+    alone:   'Alone in meeting — waiting for participants',
+  }[state] || state;
+}
+
+function renderParticipants() {
+  const el = document.getElementById('call-participants');
+  if (participants.size === 0) {
+    el.innerHTML = '<span class="empty-hint">No participants yet</span>';
+    return;
+  }
+  el.innerHTML = '';
+  participants.forEach(name => {
+    const d = document.createElement('div');
+    d.className = 'participant';
+    d.textContent = '👤 ' + name;
+    el.appendChild(d);
+  });
+}
+
+function appendTranscript(speaker, text, isBot) {
+  const feed = document.getElementById('call-transcript');
+  // Remove empty-hint on first real line
+  const hint = feed.querySelector('.empty-hint');
+  if (hint) hint.remove();
+
+  const line = document.createElement('div');
+  line.className = 'transcript-line ' + (isBot ? 'bot' : 'human');
+  line.innerHTML =
+    `<span class="speaker">${escapeHtml(speaker)}:</span>` +
+    `<span class="text">${escapeHtml(text)}</span>`;
+  feed.appendChild(line);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function returnToJoin() {
+  participants.clear();
+  const btn = document.getElementById('join-button');
+  btn.disabled = false;
+  btn.textContent = 'Join Meeting';
+  show('screen-join');
+}
+
+// ── Wails event listeners ─────────────────────────────────────────────────
+window.runtime.EventsOn('call.bot_ready', () => setStatus('ready'));
+
+window.runtime.EventsOn('participant.joined', (ev) => {
+  const p = ev.participant || {};
+  if (p.id) participants.set(p.id, p.name || ev.name || 'Unknown');
+  renderParticipants();
+});
+
+window.runtime.EventsOn('participant.left', (ev) => {
+  const p = ev.participant || {};
+  if (p.id) participants.delete(p.id);
+  renderParticipants();
+  if (participants.size === 0) setStatus('alone');
+});
+
+window.runtime.EventsOn('transcript.final', (ev) => {
+  const speaker = ev.speaker ? ev.speaker.name : 'Unknown';
+  if (ev.text) appendTranscript(speaker, ev.text, false);
+});
+
+window.runtime.EventsOn('voice.text', (ev) => {
+  if (ev.text) appendTranscript(botName, ev.text, true);
+});
+
+window.runtime.EventsOn('call.ended', () => {
+  returnToJoin();
+});
+
+window.runtime.EventsOn('call.credits_low', (ev) => {
+  const warn = document.getElementById('call-warning');
+  const mins = ev.estimated_minutes_remaining || '?';
+  warn.textContent = `Credits low — approximately ${mins} minutes remaining. Add credits at app.agentcall.dev/add-credits`;
+  warn.classList.remove('hidden');
+});
