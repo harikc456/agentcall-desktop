@@ -3,6 +3,7 @@ package brain
 import (
 	"context"
 	"log"
+	"sync"
 
 	"agentcall-desktop/internal/bridge"
 	"agentcall-desktop/internal/llm"
@@ -20,6 +21,7 @@ type TokenProvider interface {
 
 // Brain runs the LLM loop: transcript.final → Gemini → GetSun voice commands.
 type Brain struct {
+	mu      sync.Mutex
 	ws      Sender
 	llm     *llm.Client
 	tokens  TokenProvider
@@ -41,14 +43,20 @@ func New(ws Sender, llmClient *llm.Client, tokens TokenProvider, botName string)
 
 // Start begins the event loop in a goroutine.
 func (b *Brain) Start(ctx context.Context) {
-	ctx, b.cancel = context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx)
+	b.mu.Lock()
+	b.cancel = cancel
+	b.mu.Unlock()
 	go b.run(ctx)
 }
 
 // Stop cancels the brain goroutine.
 func (b *Brain) Stop() {
-	if b.cancel != nil {
-		b.cancel()
+	b.mu.Lock()
+	cancel := b.cancel
+	b.mu.Unlock()
+	if cancel != nil {
+		cancel()
 	}
 }
 
@@ -66,10 +74,7 @@ func (b *Brain) run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case event, ok := <-b.events:
-			if !ok {
-				return
-			}
+		case event := <-b.events:
 			if !ShouldProcess(event, b.botName) {
 				continue
 			}
