@@ -228,6 +228,16 @@ input:focus, select:focus, textarea:focus { border-color: #4a9eff; }
   margin-right: 0.5rem;
 }
 
+#gemini-signed-in {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#gemini-signout {
+  width: auto;
+}
+
 /* ── Gemini active chip (call screen) ────────────────────────────────── */
 .gemini-chip {
   margin-left: auto;

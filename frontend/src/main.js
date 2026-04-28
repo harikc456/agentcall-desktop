@@ -25,6 +25,7 @@ window.addEventListener('load', async () => {
   const cfg = await window.go.main.App.GetConfig();
 
   if (!cfg.api_key) {
+    await refreshGeminiUI();
     show('screen-setup');
     return;
   }
