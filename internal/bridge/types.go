@@ -65,7 +65,8 @@ type Command struct {
 	Message string `json:"message,omitempty"`
 }
 
-// ContextUpdateCmd updates the AI's context mid-call.
+// ContextUpdateCmd replaces GetSun's context scratchpad (max 4000 chars).
+// Uses "type" field (direct WebSocket protocol, not bridge.py subprocess protocol).
 type ContextUpdateCmd struct {
 	Type string `json:"type"`
 	Text string `json:"text"`
