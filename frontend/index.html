@@ -27,17 +27,14 @@
 
     <div id="gemini-section">
       <h2 class="section-title">AI Brain (Gemini)</h2>
-      <p class="hint">Sign in with Google to enable live meeting intelligence.</p>
-
-      <div id="gemini-signed-out">
-        <button id="gemini-signin" class="btn-google">Sign in with Google</button>
-        <div id="gemini-auth-error" class="error hidden"></div>
+      <p class="hint">Add a Gemini API key to enable live meeting intelligence. Get one free at <a href="https://aistudio.google.com/app/apikey" target="_blank" class="link">aistudio.google.com</a>.</p>
+      <div class="form-group">
+        <label>GEMINI API KEY</label>
+        <input id="gemini-apikey" type="password" placeholder="AIza…" autocomplete="off"/>
       </div>
-
-      <div id="gemini-signed-in" class="hidden">
-        <span id="gemini-email" class="gemini-email"></span>
-        <button id="gemini-signout" class="btn-text">Sign out</button>
-      </div>
+      <div id="gemini-key-error" class="error hidden"></div>
+      <button id="gemini-save" class="btn-primary">Save Gemini Key</button>
+      <button id="gemini-clear" class="btn-text hidden">Remove Gemini Key</button>
     </div>
   </div>
 
@@ -73,7 +70,7 @@
     </div>
     <div id="join-error" class="error hidden"></div>
     <button id="join-button" class="btn-primary">Join Meeting</button>
-    <button id="join-settings" class="btn-text">⚙ Change API Key</button>
+    <button id="join-settings" class="btn-text">⚙ Settings</button>
   </div>
 
   <!-- Screen: Active Call -->

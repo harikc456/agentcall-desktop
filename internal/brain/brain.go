@@ -14,28 +14,23 @@ type Sender interface {
 	SendJSON(v any) error
 }
 
-// TokenProvider returns a valid OAuth access token, refreshing as needed.
-type TokenProvider interface {
-	AccessToken(ctx context.Context) (string, error)
-}
-
 // Brain runs the LLM loop: transcript.final → Gemini → GetSun voice commands.
 type Brain struct {
 	mu      sync.Mutex
 	ws      Sender
 	llm     *llm.Client
-	tokens  TokenProvider
+	apiKey  string
 	botName string
 	events  chan bridge.Event
 	cancel  context.CancelFunc
 }
 
 // New creates a Brain. Call Start to begin processing.
-func New(ws Sender, llmClient *llm.Client, tokens TokenProvider, botName string) *Brain {
+func New(ws Sender, llmClient *llm.Client, apiKey, botName string) *Brain {
 	return &Brain{
 		ws:      ws,
 		llm:     llmClient,
-		tokens:  tokens,
+		apiKey:  apiKey,
 		botName: botName,
 		events:  make(chan bridge.Event, 32),
 	}
@@ -84,13 +79,7 @@ func (b *Brain) run(ctx context.Context) {
 }
 
 func (b *Brain) process(ctx context.Context, event bridge.Event) {
-	accessToken, err := b.tokens.AccessToken(ctx)
-	if err != nil {
-		log.Printf("brain: get access token: %v", err)
-		return
-	}
-
-	response, err := b.llm.Chat(ctx, accessToken, event.Text)
+	response, err := b.llm.Chat(ctx, b.apiKey, event.Text)
 	if err != nil {
 		log.Printf("brain: gemini chat: %v", err)
 		return

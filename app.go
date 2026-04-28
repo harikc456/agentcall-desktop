@@ -3,11 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 
-	"agentcall-desktop/internal/auth"
 	"agentcall-desktop/internal/brain"
 	"agentcall-desktop/internal/bridge"
 	"agentcall-desktop/internal/config"
@@ -24,31 +22,21 @@ type App struct {
 	ws     *bridge.Bridge
 	callID string
 	br     *brain.Brain
-	auth   *auth.Provider
 }
 
-// GeminiStatus is returned to the frontend to reflect sign-in state.
+// GeminiStatus is returned to the frontend.
 type GeminiStatus struct {
-	Authenticated bool   `json:"authenticated"`
-	Email         string `json:"email"`
+	Enabled bool `json:"enabled"`
 }
 
 func NewApp() *App {
-	tokPath, err := auth.DefaultTokensPath()
-	if err != nil {
-		log.Printf("warn: could not determine tokens path: %v", err)
-	}
-	return &App{
-		auth: auth.NewProvider(tokPath),
-	}
+	return &App{}
 }
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
-// beforeClose is called when the user closes the window.
-// Returns false to allow close (true would block it).
 func (a *App) beforeClose(ctx context.Context) bool {
 	a.cleanup()
 	return false
@@ -90,39 +78,17 @@ func (a *App) SaveConfig(cfg config.Config) error {
 	return config.Save(cfg)
 }
 
-// GetGeminiStatus returns whether the user is signed in with Google.
+// GetGeminiStatus returns whether a Gemini API key is configured.
 func (a *App) GetGeminiStatus() GeminiStatus {
-	return GeminiStatus{
-		Authenticated: a.auth.IsAuthenticated(),
-		Email:         a.auth.Email(),
+	cfg, err := config.Load()
+	if err != nil {
+		return GeminiStatus{}
 	}
-}
-
-// StartGeminiAuth opens the browser and runs the Google OAuth PKCE flow.
-// Runs asynchronously; emits "auth.gemini_ready" on success or "auth.gemini_error" on failure.
-func (a *App) StartGeminiAuth() error {
-	go func() {
-		err := a.auth.StartOAuth(a.ctx)
-		if err != nil {
-			runtime.EventsEmit(a.ctx, "auth.gemini_error", map[string]string{"error": err.Error()})
-			return
-		}
-		runtime.EventsEmit(a.ctx, "auth.gemini_ready", map[string]string{"email": a.auth.Email()})
-	}()
-	return nil
-}
-
-// SignOutGemini removes stored Google tokens and emits "auth.gemini_signed_out".
-func (a *App) SignOutGemini() error {
-	if err := a.auth.SignOut(); err != nil {
-		return err
-	}
-	runtime.EventsEmit(a.ctx, "auth.gemini_signed_out", nil)
-	return nil
+	return GeminiStatus{Enabled: cfg.GeminiAPIKey != ""}
 }
 
 // JoinMeeting creates an AgentCall call and opens the WebSocket connection.
-// If the user is signed in with Google, the Gemini brain is started automatically.
+// If a Gemini API key is configured, the brain is started automatically.
 func (a *App) JoinMeeting(meetURL, botName, triggerWords, botContext, voice string) error {
 	a.mu.Lock()
 	if a.ws != nil {
@@ -177,9 +143,9 @@ func (a *App) JoinMeeting(meetURL, botName, triggerWords, botContext, voice stri
 	a.mu.Unlock()
 
 	var br *brain.Brain
-	if a.auth.IsAuthenticated() {
+	if cfg.GeminiAPIKey != "" {
 		llmClient := llm.NewClient(botName, botContext)
-		br = brain.New(ws, llmClient, a.auth, botName)
+		br = brain.New(ws, llmClient, cfg.GeminiAPIKey, botName)
 		br.Start(a.ctx)
 		a.mu.Lock()
 		a.br = br

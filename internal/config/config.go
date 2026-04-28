@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	APIKey         string `json:"api_key,omitempty"`
+	GeminiAPIKey   string `json:"gemini_api_key,omitempty"`
 	DefaultMode    string `json:"default_mode,omitempty"`
 	DefaultVoice   string `json:"default_voice,omitempty"`
 	DefaultBotName string `json:"default_bot_name,omitempty"`
