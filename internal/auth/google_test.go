@@ -1,10 +1,16 @@
 package auth_test
 
 import (
+	"os"
 	"testing"
 
 	"agentcall-desktop/internal/auth"
 )
+
+func TestMain(m *testing.M) {
+	auth.SetGoogleClientID("test-client-id.apps.googleusercontent.com")
+	os.Exit(m.Run())
+}
 
 func TestGenerateVerifier(t *testing.T) {
 	v1, err := auth.GenerateVerifier()
