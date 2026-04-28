@@ -1,12 +1,83 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>agentcall-desktop</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AgentCall Desktop</title>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-<div id="app"></div>
-<script src="./src/main.js" type="module"></script>
+
+  <!-- Screen: Setup (shown only when no API key) -->
+  <div id="screen-setup" class="screen hidden">
+    <div class="logo">🤖</div>
+    <h1>AgentCall Desktop</h1>
+    <p class="subtitle">Connect your account to get started</p>
+    <div class="form-group">
+      <label>API KEY</label>
+      <input id="setup-apikey" type="password" placeholder="ak_ac_••••••••"/>
+      <a href="https://app.agentcall.dev/login" target="_blank" class="link">
+        → Get your key at app.agentcall.dev
+      </a>
+    </div>
+    <div id="setup-error" class="error hidden"></div>
+    <button id="setup-save" class="btn-primary">Save &amp; Continue</button>
+  </div>
+
+  <!-- Screen: Join a Meeting -->
+  <div id="screen-join" class="screen hidden">
+    <div class="logo">🤖</div>
+    <h1>Join a Meeting</h1>
+    <div class="form-group">
+      <label>MEETING URL</label>
+      <input id="join-url" type="url" placeholder="https://meet.google.com/abc-def-ghi"/>
+    </div>
+    <div class="form-group">
+      <label>BOT NAME</label>
+      <input id="join-botname" type="text" placeholder="Juno"/>
+    </div>
+    <div class="form-group">
+      <label>VOICE</label>
+      <select id="join-voice">
+        <option value="voice.heart">Heart (Female)</option>
+        <option value="voice.bella">Bella (Female)</option>
+        <option value="voice.echo">Echo (Male)</option>
+        <option value="voice.eric">Eric (Male)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>TRIGGER WORDS <span class="hint">(comma-separated)</span></label>
+      <input id="join-trigger" type="text" placeholder="juno, june"/>
+    </div>
+    <div class="form-group">
+      <label>CONTEXT <span class="hint">(optional — what should the bot know?)</span></label>
+      <textarea id="join-context" rows="3"
+        placeholder="You are a helpful meeting assistant for Acme Corp..."></textarea>
+    </div>
+    <div id="join-error" class="error hidden"></div>
+    <button id="join-button" class="btn-primary">Join Meeting</button>
+    <button id="join-settings" class="btn-text">⚙ Change API Key</button>
+  </div>
+
+  <!-- Screen: Active Call -->
+  <div id="screen-call" class="screen hidden">
+    <div class="call-header">
+      <div id="call-status-dot" class="status-dot joining"></div>
+      <span id="call-status-text">Joining meeting...</span>
+    </div>
+    <div class="section-label">PARTICIPANTS</div>
+    <div id="call-participants" class="participants-list">
+      <span class="empty-hint">Waiting for participants...</span>
+    </div>
+    <div class="section-label">LIVE TRANSCRIPT</div>
+    <div id="call-transcript" class="transcript-feed">
+      <span class="empty-hint">Transcript will appear here...</span>
+    </div>
+    <div id="call-warning" class="warning hidden"></div>
+    <button id="call-leave" class="btn-danger">Leave Meeting</button>
+  </div>
+
+  <script src="/wails.js"></script>
+  <script src="main.js"></script>
 </body>
 </html>
