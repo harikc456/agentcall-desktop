@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 
@@ -33,7 +34,10 @@ type GeminiStatus struct {
 }
 
 func NewApp() *App {
-	tokPath, _ := auth.DefaultTokensPath()
+	tokPath, err := auth.DefaultTokensPath()
+	if err != nil {
+		log.Printf("warn: could not determine tokens path: %v", err)
+	}
 	return &App{
 		auth: auth.NewProvider(tokPath),
 	}
@@ -127,7 +131,13 @@ func (a *App) JoinMeeting(meetURL, botName, triggerWords, botContext, voice stri
 	}
 	a.mu.Unlock()
 
-	cfg, _ := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("could not load config: %w", err)
+	}
+	if cfg.APIKey == "" {
+		return fmt.Errorf("API key not configured — open Settings and enter your AgentCall API key")
+	}
 
 	client := bridge.NewClient(cfg.APIKey, "")
 	a.mu.Lock()
@@ -182,30 +192,7 @@ func (a *App) JoinMeeting(meetURL, botName, triggerWords, botContext, voice stri
 
 // LeaveCall ends the active call and stops the brain if running.
 func (a *App) LeaveCall() error {
-	a.mu.Lock()
-	ws := a.ws
-	callID := a.callID
-	client := a.client
-	br := a.br
-	a.mu.Unlock()
-
-	if ws == nil {
-		return nil
-	}
-
-	if br != nil {
-		br.Stop()
-	}
-	ws.Close()
-	if client != nil && callID != "" {
-		_ = client.DeleteCall(callID)
-	}
-
-	a.mu.Lock()
-	a.ws = nil
-	a.callID = ""
-	a.br = nil
-	a.mu.Unlock()
+	a.cleanup()
 	return nil
 }
 
@@ -226,11 +213,12 @@ func (a *App) forwardEvents(ws *bridge.Bridge, br *brain.Brain) {
 			a.mu.Lock()
 			a.ws = nil
 			a.callID = ""
-			if a.br != nil {
-				a.br.Stop()
-				a.br = nil
-			}
+			br := a.br
+			a.br = nil
 			a.mu.Unlock()
+			if br != nil {
+				br.Stop()
+			}
 		}
 	}
 }
