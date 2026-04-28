@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"time"
 )
 
 const (
@@ -40,10 +41,11 @@ type generateResponse struct {
 
 // Client calls the Gemini API and maintains conversation history.
 type Client struct {
-	botName   string
-	sysPrompt string
-	history   []Content
-	mu        sync.Mutex
+	botName    string
+	sysPrompt  string
+	history    []Content
+	mu         sync.Mutex
+	httpClient *http.Client
 }
 
 // NewClient creates a Gemini client. botName and userContext are woven into the
@@ -56,7 +58,11 @@ func NewClient(botName, userContext string) *Client {
 	if userContext != "" {
 		prompt += "\n\n" + userContext
 	}
-	return &Client{botName: botName, sysPrompt: prompt}
+	return &Client{
+		botName:    botName,
+		sysPrompt:  prompt,
+		httpClient: &http.Client{Timeout: 30 * time.Second},
+	}
 }
 
 // BuildRequest constructs a GenerateRequest from history + the new transcript.
@@ -66,8 +72,8 @@ func (c *Client) BuildRequest(transcript string) GenerateRequest {
 	defer c.mu.Unlock()
 
 	history := c.history
-	if len(history) > maxHistoryTurns {
-		history = history[len(history)-maxHistoryTurns:]
+	if len(history) > maxHistoryTurns*2 {
+		history = history[len(history)-maxHistoryTurns*2:]
 	}
 
 	contents := make([]Content, len(history)+1)
@@ -125,7 +131,7 @@ func (c *Client) Chat(ctx context.Context, accessToken, transcript string) (stri
 	httpReq.Header.Set("Authorization", "Bearer "+accessToken)
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		return "", fmt.Errorf("gemini request: %w", err)
 	}
@@ -137,6 +143,9 @@ func (c *Client) Chat(ctx context.Context, accessToken, transcript string) (stri
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		if len(respBody) > 512 {
+			respBody = respBody[:512]
+		}
 		return "", fmt.Errorf("gemini %d: %s", resp.StatusCode, respBody)
 	}
 

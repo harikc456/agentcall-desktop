@@ -64,9 +64,21 @@ func TestHistoryCapAt20Turns(t *testing.T) {
 		c.RecordTurn("question", "answer")
 	}
 	req := c.BuildRequest("new question")
-	// 20 history entries (12 pairs = 24 messages, capped at 20) + 1 new = 21 max
-	if len(req.Contents) > 21 {
-		t.Errorf("history not capped: got %d contents", len(req.Contents))
+	// 12 pairs = 24 entries, below the 40-entry cap, so all kept + 1 new = 25
+	if len(req.Contents) != 25 {
+		t.Errorf("expected 25 contents, got %d", len(req.Contents))
+	}
+}
+
+func TestHistoryCapAt40Entries(t *testing.T) {
+	c := llm.NewClient("Juno", "")
+	for i := 0; i < 21; i++ { // 21 pairs = 42 entries, exceeds cap of 40
+		c.RecordTurn("question", "answer")
+	}
+	req := c.BuildRequest("new question")
+	// capped to 40 entries + 1 new = 41
+	if len(req.Contents) != 41 {
+		t.Errorf("expected 41 contents, got %d", len(req.Contents))
 	}
 }
 
