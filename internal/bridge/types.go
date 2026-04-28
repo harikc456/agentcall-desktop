@@ -64,3 +64,16 @@ type Command struct {
 	Voice   string `json:"voice,omitempty"`
 	Message string `json:"message,omitempty"`
 }
+
+// ContextUpdateCmd updates the AI's context mid-call.
+type ContextUpdateCmd struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
+// TriggerSpeakCmd triggers the AI to speak.
+type TriggerSpeakCmd struct {
+	Type    string `json:"type"`
+	Text    string `json:"text"`
+	Speaker string `json:"speaker"`
+}
