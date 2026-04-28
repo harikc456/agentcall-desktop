@@ -52,3 +52,42 @@ func TestEventNormalize(t *testing.T) {
 		t.Errorf("Normalize: got %q want %q", e2.Normalize(), "call.bot_ready")
 	}
 }
+
+func TestContextUpdateCmdJSON(t *testing.T) {
+	cmd := bridge.ContextUpdateCmd{
+		Type: "voice.context_update",
+		Text: "The revenue was $2.4M.",
+	}
+	data, err := json.Marshal(cmd)
+	if err != nil {
+		t.Fatalf("marshal error: %v", err)
+	}
+	var m map[string]string
+	json.Unmarshal(data, &m)
+	if m["type"] != "voice.context_update" {
+		t.Errorf("type: got %q want %q", m["type"], "voice.context_update")
+	}
+	if m["text"] != "The revenue was $2.4M." {
+		t.Errorf("text: got %q", m["text"])
+	}
+}
+
+func TestTriggerSpeakCmdJSON(t *testing.T) {
+	cmd := bridge.TriggerSpeakCmd{
+		Type:    "trigger.speak",
+		Text:    "What is the revenue?",
+		Speaker: "Alice",
+	}
+	data, err := json.Marshal(cmd)
+	if err != nil {
+		t.Fatalf("marshal error: %v", err)
+	}
+	var m map[string]string
+	json.Unmarshal(data, &m)
+	if m["type"] != "trigger.speak" {
+		t.Errorf("type: got %q", m["type"])
+	}
+	if m["speaker"] != "Alice" {
+		t.Errorf("speaker: got %q", m["speaker"])
+	}
+}
