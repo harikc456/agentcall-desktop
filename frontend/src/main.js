@@ -48,7 +48,8 @@ document.getElementById('setup-save').addEventListener('click', async () => {
     return;
   }
   try {
-    await window.go.main.App.SaveConfig({ api_key: key });
+    const cfg = await window.go.main.App.GetConfig();
+    await window.go.main.App.SaveConfig({ ...cfg, api_key: key });
     show('screen-join');
   } catch (e) {
     showError('setup-error', 'Could not save key: ' + e);
@@ -121,9 +122,14 @@ document.getElementById('gemini-save').addEventListener('click', async () => {
   const key = document.getElementById('gemini-apikey').value.trim();
   if (!key) { showError('gemini-key-error', 'Please enter a Gemini API key.'); return; }
   hideError('gemini-key-error');
-  const cfg = await window.go.main.App.GetConfig();
-  await window.go.main.App.SaveConfig({ ...cfg, gemini_api_key: key });
-  await refreshGeminiUI();
+  try {
+    const cfg = await window.go.main.App.GetConfig();
+    const newCfg = { ...cfg, gemini_api_key: key };
+    await window.go.main.App.SaveConfig(newCfg);
+    await refreshGeminiUI();
+  } catch (e) {
+    showError('gemini-key-error', 'Could not save key: ' + e);
+  }
 });
 
 document.getElementById('gemini-clear').addEventListener('click', async () => {
