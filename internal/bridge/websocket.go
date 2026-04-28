@@ -43,6 +43,15 @@ func (b *Bridge) SendCommand(cmd Command) error {
 	return b.conn.WriteJSON(cmd)
 }
 
+// SendJSON writes any JSON-serialisable value to the WebSocket.
+// Use for voice intelligence commands that require the "type" field
+// rather than the "command" field used by SendCommand.
+func (b *Bridge) SendJSON(v any) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.conn.WriteJSON(v)
+}
+
 // Close sends a leave command, then closes the WebSocket.
 func (b *Bridge) Close() {
 	// Best-effort leave — ignore error (call may already be ended).
