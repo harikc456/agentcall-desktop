@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"time"
@@ -33,7 +34,7 @@ func DefaultTokensPath() (string, error) {
 // file does not exist — treated as "not signed in".
 func LoadTokens(path string) (Tokens, error) {
 	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return Tokens{}, nil
 	}
 	if err != nil {

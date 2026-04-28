@@ -62,7 +62,9 @@ func TestSignOut(t *testing.T) {
 	tok := auth.Tokens{
 		Gemini: &auth.GeminiTokens{AccessToken: "ya29.test", Email: "u@g.com"},
 	}
-	auth.SaveTokens(tok, path)
+	if err := auth.SaveTokens(tok, path); err != nil {
+		t.Fatalf("SaveTokens (setup): %v", err)
+	}
 
 	cleared := auth.Tokens{}
 	if err := auth.SaveTokens(cleared, path); err != nil {
