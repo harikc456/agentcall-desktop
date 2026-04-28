@@ -22,6 +22,7 @@
     </div>
     <div id="setup-error" class="error hidden"></div>
     <button id="setup-save" class="btn-primary">Save &amp; Continue</button>
+    <button id="setup-back" class="btn-text hidden">← Back to Main Menu</button>
 
     <hr class="divider" />
 
@@ -59,14 +60,17 @@
         <option value="voice.eric">Eric (Male)</option>
       </select>
     </div>
-    <div class="form-group">
-      <label>TRIGGER WORDS <span class="hint">(comma-separated)</span></label>
-      <input id="join-trigger" type="text" placeholder="juno, june"/>
-    </div>
-    <div class="form-group">
-      <label>CONTEXT <span class="hint">(optional — what should the bot know?)</span></label>
-      <textarea id="join-context" rows="3"
-        placeholder="You are a helpful meeting assistant for Acme Corp..."></textarea>
+    <button id="join-advanced-toggle" class="btn-advanced" aria-expanded="false">Advanced ▾</button>
+    <div id="join-advanced" class="advanced-section">
+      <div class="form-group">
+        <label>TRIGGER WORDS <span class="hint">(comma-separated)</span></label>
+        <input id="join-trigger" type="text" placeholder="juno, june"/>
+      </div>
+      <div class="form-group">
+        <label>CONTEXT <span class="hint">(optional — what should the bot know?)</span></label>
+        <textarea id="join-context" rows="3"
+          placeholder="You are a helpful meeting assistant for Acme Corp..."></textarea>
+      </div>
     </div>
     <div id="join-error" class="error hidden"></div>
     <button id="join-button" class="btn-primary">Join Meeting</button>
@@ -75,21 +79,21 @@
 
   <!-- Screen: Active Call -->
   <div id="screen-call" class="screen hidden">
-    <div class="call-header">
-      <div id="call-status-dot" class="status-dot joining"></div>
+    <div id="call-status-bar" class="status-bar">
+      <div id="call-status-indicator" class="status-indicator">
+        <div id="call-status-dot" class="status-dot joining"></div>
+      </div>
       <span id="call-status-text">Joining meeting...</span>
-      <span id="gemini-chip" class="gemini-chip hidden">● Gemini active</span>
+      <span id="gemini-chip" class="gemini-chip hidden">● Gemini</span>
     </div>
-    <div class="section-label">PARTICIPANTS</div>
-    <div id="call-participants" class="participants-list">
-      <span class="empty-hint">Waiting for participants...</span>
-    </div>
-    <div class="section-label">LIVE TRANSCRIPT</div>
-    <div id="call-transcript" class="transcript-feed">
-      <span class="empty-hint">Transcript will appear here...</span>
+    <div id="call-feed" class="chat-feed">
+      <span class="empty-hint">Conversation will appear here…</span>
     </div>
     <div id="call-warning" class="warning hidden"></div>
-    <button id="call-leave" class="btn-danger">Leave Meeting</button>
+    <div class="bottom-row">
+      <div id="call-participants" class="participants-strip"></div>
+      <button id="call-leave" class="btn-leave">Leave</button>
+    </div>
   </div>
 
   <script src="/wails.js"></script>
