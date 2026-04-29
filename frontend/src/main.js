@@ -3,6 +3,7 @@
 // ── State ──────────────────────────────────────────────────────────────────
 const participants = new Map(); // id → name
 let botName = 'Juno';
+let respondingTimer = null;
 
 // ── Screen helpers ─────────────────────────────────────────────────────────
 function show(id) {
@@ -36,6 +37,7 @@ window.addEventListener('load', async () => {
   if (cfg.trigger_words)    document.getElementById('join-trigger').value  = cfg.trigger_words;
   if (cfg.context)          document.getElementById('join-context').value  = cfg.context;
 
+  openAdvancedIfPopulated();
   show('screen-join');
 });
 
@@ -57,6 +59,25 @@ document.getElementById('setup-save').addEventListener('click', async () => {
 });
 
 // ── Join screen ───────────────────────────────────────────────────────────
+// ── Advanced toggle ───────────────────────────────────────────────────────
+document.getElementById('join-advanced-toggle').addEventListener('click', () => {
+  const section = document.getElementById('join-advanced');
+  const btn = document.getElementById('join-advanced-toggle');
+  const open = section.classList.toggle('open');
+  btn.textContent = open ? 'Advanced ▴' : 'Advanced ▾';
+  btn.setAttribute('aria-expanded', open);
+});
+
+function openAdvancedIfPopulated() {
+  const trigger = document.getElementById('join-trigger').value.trim();
+  const ctx = document.getElementById('join-context').value.trim();
+  if (trigger || ctx) {
+    document.getElementById('join-advanced').classList.add('open');
+    document.getElementById('join-advanced-toggle').textContent = 'Advanced ▴';
+    document.getElementById('join-advanced-toggle').setAttribute('aria-expanded', 'true');
+  }
+}
+
 document.getElementById('join-button').addEventListener('click', async () => {
   hideError('join-error');
 
@@ -99,10 +120,15 @@ document.getElementById('join-button').addEventListener('click', async () => {
 
 document.getElementById('join-settings').addEventListener('click', async () => {
   await refreshGeminiUI();
+  document.getElementById('setup-back').classList.remove('hidden');
   show('screen-setup');
 });
 
 // ── Gemini API key ────────────────────────────────────────────────────────
+
+document.getElementById('setup-back').addEventListener('click', () => {
+  show('screen-join');
+});
 
 async function refreshGeminiUI() {
   const cfg = await window.go.main.App.GetConfig();
@@ -150,23 +176,40 @@ document.getElementById('call-leave').addEventListener('click', async () => {
 // ── Call screen helpers ───────────────────────────────────────────────────
 function resetCallScreen() {
   participants.clear();
-  document.getElementById('call-status-dot').className = 'status-dot joining';
-  document.getElementById('call-status-text').textContent = 'Joining meeting...';
-  document.getElementById('call-participants').innerHTML = '<span class="empty-hint">Waiting for participants...</span>';
-  document.getElementById('call-transcript').innerHTML   = '<span class="empty-hint">Transcript will appear here...</span>';
+  setBotState('joining');
+  document.getElementById('call-participants').innerHTML = '';
+  document.getElementById('call-feed').innerHTML = '<span class="empty-hint">Conversation will appear here…</span>';
   document.getElementById('call-warning').classList.add('hidden');
   document.getElementById('call-leave').disabled = false;
 }
 
+function setBotState(state) {
+  const bar       = document.getElementById('call-status-bar');
+  const indicator = document.getElementById('call-status-indicator');
+  const text      = document.getElementById('call-status-text');
+
+  bar.className = 'status-bar ' + state;
+
+  if (state === 'responding') {
+    indicator.innerHTML =
+      '<div class="waveform">' +
+      '<span></span><span></span><span></span><span></span><span></span>' +
+      '</div>';
+  } else {
+    indicator.innerHTML = '<div class="status-dot ' + state + '"></div>';
+  }
+
+  const labels = {
+    joining:    'Joining meeting...',
+    ready:      botName + ' is listening',
+    responding: botName + ' is responding…',
+    alone:      'Alone in meeting — waiting for participants',
+  };
+  text.textContent = labels[state] || state;
+}
+
 function setStatus(state) {
-  const dot  = document.getElementById('call-status-dot');
-  const text = document.getElementById('call-status-text');
-  dot.className = 'status-dot ' + state;
-  text.textContent = {
-    joining: 'Joining meeting...',
-    ready:   botName + ' is in the meeting',
-    alone:   'Alone in meeting — waiting for participants',
-  }[state] || state;
+  setBotState(state);
 }
 
 function renderParticipants() {
