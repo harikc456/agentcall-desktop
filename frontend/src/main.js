@@ -208,22 +208,14 @@ function setBotState(state) {
   text.textContent = labels[state] || state;
 }
 
-function setStatus(state) {
-  setBotState(state);
-}
-
 function renderParticipants() {
   const el = document.getElementById('call-participants');
-  if (participants.size === 0) {
-    el.innerHTML = '<span class="empty-hint">No participants yet</span>';
-    return;
-  }
   el.innerHTML = '';
   participants.forEach(name => {
-    const d = document.createElement('div');
-    d.className = 'participant';
-    d.textContent = '👤 ' + name;
-    el.appendChild(d);
+    const pill = document.createElement('div');
+    pill.className = 'participant-pill';
+    pill.textContent = '👤 ' + name;
+    el.appendChild(pill);
   });
 }
 
@@ -260,7 +252,7 @@ function returnToJoin() {
 // ── Wails event listeners ─────────────────────────────────────────────────
 
 window.runtime.EventsOn('call.bot_ready', async () => {
-  setStatus('ready');
+  setBotState('ready');
   const status = await window.go.main.App.GetGeminiStatus();
   const chip = document.getElementById('gemini-chip');
   if (status.enabled) {
@@ -274,13 +266,14 @@ window.runtime.EventsOn('participant.joined', (ev) => {
   const p = ev.participant || {};
   if (p.id) participants.set(p.id, p.name || ev.name || 'Unknown');
   renderParticipants();
+  setBotState('ready');
 });
 
 window.runtime.EventsOn('participant.left', (ev) => {
   const p = ev.participant || {};
   if (p.id) participants.delete(p.id);
   renderParticipants();
-  if (participants.size === 0) setStatus('alone');
+  if (participants.size === 0) setBotState('alone');
 });
 
 window.runtime.EventsOn('transcript.final', (ev) => {
@@ -290,6 +283,9 @@ window.runtime.EventsOn('transcript.final', (ev) => {
 
 window.runtime.EventsOn('voice.text', (ev) => {
   if (ev.text) appendMessage(botName, ev.text, true);
+  setBotState('responding');
+  clearTimeout(respondingTimer);
+  respondingTimer = setTimeout(() => setBotState('ready'), 2000);
 });
 
 window.runtime.EventsOn('call.ended', () => {
