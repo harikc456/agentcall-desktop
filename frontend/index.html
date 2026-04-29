@@ -80,7 +80,7 @@
   <!-- Screen: Active Call -->
   <div id="screen-call" class="screen hidden">
     <div id="call-status-bar" class="status-bar">
-      <div id="call-status-indicator" class="status-indicator">
+      <div id="call-status-indicator" class="status-indicator" aria-hidden="true">
         <div id="call-status-dot" class="status-dot joining"></div>
       </div>
       <span id="call-status-text">Joining meeting...</span>
@@ -92,7 +92,7 @@
     <div id="call-warning" class="warning hidden"></div>
     <div class="bottom-row">
       <div id="call-participants" class="participants-strip"></div>
-      <button id="call-leave" class="btn-leave">Leave</button>
+      <button id="call-leave" type="button" class="btn-leave">Leave</button>
     </div>
   </div>
 
