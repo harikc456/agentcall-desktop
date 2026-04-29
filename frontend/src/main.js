@@ -227,27 +227,26 @@ function renderParticipants() {
   });
 }
 
-function appendTranscript(speaker, text, isBot) {
-  const feed = document.getElementById('call-transcript');
-  // Remove empty-hint on first real line
+function appendMessage(speaker, text, isBot) {
+  const feed = document.getElementById('call-feed');
   const hint = feed.querySelector('.empty-hint');
   if (hint) hint.remove();
 
-  const line = document.createElement('div');
-  line.className = 'transcript-line ' + (isBot ? 'bot' : 'human');
-  line.innerHTML =
-    `<span class="speaker">${escapeHtml(speaker)}:</span>` +
-    `<span class="text">${escapeHtml(text)}</span>`;
-  feed.appendChild(line);
-  feed.scrollTop = feed.scrollHeight;
-}
+  const wrapper = document.createElement('div');
+  wrapper.className = 'bubble-wrapper ' + (isBot ? 'bubble-bot' : 'bubble-human');
 
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  const label = document.createElement('div');
+  label.className = 'bubble-label';
+  label.textContent = speaker;
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+
+  wrapper.appendChild(label);
+  wrapper.appendChild(bubble);
+  feed.appendChild(wrapper);
+  feed.scrollTop = feed.scrollHeight;
 }
 
 function returnToJoin() {
@@ -286,11 +285,11 @@ window.runtime.EventsOn('participant.left', (ev) => {
 
 window.runtime.EventsOn('transcript.final', (ev) => {
   const speaker = ev.speaker ? ev.speaker.name : 'Unknown';
-  if (ev.text) appendTranscript(speaker, ev.text, false);
+  if (ev.text) appendMessage(speaker, ev.text, false);
 });
 
 window.runtime.EventsOn('voice.text', (ev) => {
-  if (ev.text) appendTranscript(botName, ev.text, true);
+  if (ev.text) appendMessage(botName, ev.text, true);
 });
 
 window.runtime.EventsOn('call.ended', () => {
